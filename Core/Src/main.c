@@ -1,8 +1,5 @@
 
 #include "main.h"
-
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
 #include "fonts.h"
 #include "ssd1306.h"
 #include "math.h"
@@ -11,6 +8,8 @@
 #include "stdbool.h"
 #include <stdio.h>
 #include <stdint.h>
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes *
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -18,24 +17,24 @@
 #define MPU6050_ADDR 0xD0
 I2C_HandleTypeDef hi2c1;
 /* USER CODE BEGIN PV */
-
+//nguong
 typedef struct {
-	float angle;
-	float magnitude;
+	float goc;
+	float khoangcach;
 	float prev ;
 	int count;
-}thresholding;
+}nguong;
 
 uint16_t flag = 1;			
 
 char buff[16];
-thresholding data;
+nguong data;
 MPU6050_t MPU6050;
 uint32_t odr;
 
 I2C_HandleTypeDef hi2c1;
 
-//funtion delay 
+
 void IncTick(void)
 {
   uwTick += uwTickFreq;
@@ -47,6 +46,7 @@ uint32_t GetTick(void)
 void SysTick_Handler1(void){
 	IncTick();
 }
+//funtion delay 
  void Delay_ms(uint32_t ms)
 {
   uint32_t tickstart = GetTick();
@@ -57,59 +57,39 @@ void SysTick_Handler1(void){
   {
     wait += (uint32_t)(1U);
   }
-
   while ((GetTick() - tickstart) < wait){}
 }
-///////////////check data
-float checkData(MPU6050_t DataStruct , thresholding *data){
-
+//check data
+float CheckData(MPU6050_t DataStruct , nguong *data)
+{
+	//khai bao mang
 	float data_G[5];
 	float derivative[5];
 	for(uint16_t i = 0 ; i < 5; i++){
-
+	//doc du lieu gyro tu cam bien
 		MPU6050_Read_Gyro(&hi2c1, &MPU6050);
 		
-		data->magnitude = sqrt(MPU6050.Gx*MPU6050.Gx + MPU6050.Gy*MPU6050.Gy + MPU6050.Gz*MPU6050.Gz);
-		data_G[i] = data->magnitude;
+		data->khoangcach = sqrt(MPU6050.Gx*MPU6050.Gx + MPU6050.Gy*MPU6050.Gy + MPU6050.Gz*MPU6050.Gz);
+		data_G[i] = data->khoangcach;
 		
 		Delay_ms(50);
 	}
+	//daoham
 		for (uint16_t i = 1; i < 4; i++) {
         derivative[i] = data_G[i + 1] - data_G[i - 1];
     }
 
-    
+   //neu dao ham di tu am sang duong or tu duong sang am thi thoa man dieu kien
     for (uint16_t i = 0; i < 3; i++) {
         if ((derivative[i] > 0 && derivative[i + 1] < 0) || (derivative[i] < 0 && derivative[i + 1] > 0)) {
-            // Kiem tra dieu kien do loc các dinh
+            // Kiem tra dieu kien do loc cac dinh
             if(data_G[i] >= 40){
                 data->count ++;
             }
         }
 		}
-
-	}
-
-	
-	
-///////////////////////////GPIO/////////////////////////
-void GPIO_WritePin(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, uint16_t PinState)
-{
-  /* Check the parameters */
-  assert_param(IS_GPIO_PIN(GPIO_Pin));
-  assert_param(IS_GPIO_PIN_ACTION(PinState));
-
-  if (PinState != 0)
-  {
-    GPIOx->BSRR = GPIO_Pin;   //bit set reset register
-  }
-  else
-  {
-    GPIOx->BSRR = (uint32_t)GPIO_Pin << 16u;
-  }
 }
-
-///////////////////////// Read GPIO
+// Read GPIO
 uint16_t GPIO_ReadPin(GPIO_TypeDef *GPIO, uint16_t GPIO_Pin)
 {
   uint16_t bitstatus;
@@ -127,11 +107,27 @@ uint16_t GPIO_ReadPin(GPIO_TypeDef *GPIO, uint16_t GPIO_Pin)
   }
   return bitstatus;
 }
-//////////////////////////togle register
+//write GPIO
+void GPIO_WritePin(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, uint16_t PinState)
+{
+  /* Check the parameters */
+  assert_param(IS_GPIO_PIN(GPIO_Pin));
+  assert_param(IS_GPIO_PIN_ACTION(PinState));
+  if (PinState != 0)
+  {
+    GPIOx->BSRR = GPIO_Pin;   //bit set reset register
+  }
+  else
+  {
+    GPIOx->BSRR = (uint32_t)GPIO_Pin << 16u;
+  }
+}
+
+//togle register
 uint16_t Togle(GPIO_TypeDef *GPIOx,uint16_t GPIO_Pin){
-	/* get current Output Data Register value */
+	// get current Output Data Register value 
 				odr = GPIOx->ODR;
-				/* Set selected pins that were at low level, and reset ones that were high */
+				// Set selected pins that were at low level, and reset ones that were high 
 				GPIOx->BSRR = ((odr & GPIO_Pin) << 16u) | (~odr & GPIO_Pin);
 }
 
@@ -145,16 +141,16 @@ void GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
-  //Configure GPIO pin Output Level */
+  //Configure GPIO pin Output Level 
   GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
-  //Configure GPIO pin : PC13 */
+  //Configure GPIO pin : PC13 
   GPIO_InitStruct.Pin = GPIO_PIN_13;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 	
-	  /*Configure GPIO pin : PA0 */
+	  //Configure GPIO pin : PA0 
   GPIO_InitStruct.Pin = GPIO_PIN_0;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
@@ -174,7 +170,7 @@ void GPIO_Init(void)
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 	
 }
-	////////////////////////////////I2C_INIT/////////////////////////////
+//I2C_INIT
 void I2C1_Init(void)
 {
 
@@ -197,38 +193,38 @@ void I2C1_Init(void)
 }
 
 
-// Ðinh nghia các bien và ma tran cho bo loc Kalman
+// dinh nghia cÃ¡c bien vÃ  ma tran cho bo loc Kalman
 	
-float x_estimated;           // Trang thái uoc luong
+float x_estimate;           // Trang thai uoc luong
 float p;                     // Ma tran hiep phuong sai uoc luong
-const float q = 0.01;        // Ma tran nhieu quá trình
+const float q = 0.01;        // Ma tran nhieu qua trinh
 const float r = 0.1;         // Ma tran nhieu do
 float k;                     // Ma tran Kalman Gain
 float z;                     // Du lieu do
-float x_predicted;           // Trang thái du doán
-float y_predicted;           // Trang thái du doán
-float z_predicted;           // Trang thái du doán
-float p_predicted;           // Ma tran hiep phuong sai du doán
+float x_dd;           // Trang thai du doan
+float y_dd;           // Trang thai du doan
+float z_dd;           // Trang thai du doÃ¡n
+float p_dd;           // Ma tran hiep phuong sai du doan
 
-// Hàm cap nhat giá tri uoc luong cua bo loc Kalman
+// Ham cap nhat gia tri uoc luong cua bo loc Kalman
 void Kalman_Update(MPU6050_t data_measurement)
 {
-    // Du doan trang thái chuyen tiep
+    // Du doan trang thai chuyen tiep
     
-	  x_predicted = data_measurement.Gx;
-		y_predicted = data_measurement.Gy;
-		z_predicted = data_measurement.Gz;
-    p_predicted = p + q;
+	  x_dd = data_measurement.Gx;
+		y_dd = data_measurement.Gy;
+		z_dd = data_measurement.Gz;
+    p_dd = p + q;
 
     // Tinh ma tran Kalman Gain
-    k = p_predicted / (p_predicted + r);
+    k = p_dd / (p_dd + r);
 
     // Cap nhat trang thai uoc luong
-    data_measurement.Gx = x_predicted + k * (data_measurement.Gx - x_predicted);
-		data_measurement.Gy = y_predicted + k * (data_measurement.Gy - x_predicted);
-		data_measurement.Gz = z_predicted + k * (data_measurement.Gz - x_predicted);
+    data_measurement.Gx = x_dd + k * (data_measurement.Gx - x_dd);
+		data_measurement.Gy = y_dd + k * (data_measurement.Gy - x_dd);
+		data_measurement.Gz = z_dd + k * (data_measurement.Gz - x_dd);
     // Cap nhat ma tran hiep phuong sai uoc luong
-    p = (1 - k) * p_predicted;
+    p = (1 - k) * p_dd;
 }
 
 
@@ -260,7 +256,7 @@ int main(void)
 
   /* USER CODE BEGIN WHILE */
 	data.count = 0;
-	x_estimated = 0;
+	x_estimate = 0;
   p = 1;
 	
   while (1)
@@ -270,7 +266,7 @@ int main(void)
 	
 		/* USER CODE END WHILE */
 		Kalman_Update(MPU6050);
-		checkData(MPU6050, &data);
+		CheckData(MPU6050, &data);
 	
 		if(GPIO_ReadPin(GPIOA,GPIO_PIN_0) == 0 && flag == 1){
 			GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);		// turn off led green
